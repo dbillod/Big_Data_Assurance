@@ -84,6 +84,18 @@ sum(VariableCat)
 posVarCat=which(VariableCat==1)
 posVarCat
 
+#########
+## On va regarder le nombre de modalités des variables qualitatives
+#########
+
+nb_levels = matrix(0,nrow = 2, ncol = length(posVarCat))
+nb_levels[1,] = posVarCat
+for (i in 1:length(posVarCat)){
+	nb_levels[2,i] = length(levels(base_a[,posVarCat[i]+2]))
+}
+nb_levels
+
+
 ##########
 ## Test du Chi2
 ##########
@@ -134,10 +146,31 @@ rf1
 
 rf2 = rfImpute(x = base_a, y = as.factor(target), ntree = 10)
 
+##On va enlever les variables avec plus de 53 modalités
+posvar_53 = NULL
+for (i in 1:length(posVarCat)){
+	if (nb_levels[2,i]>=53){
+		posvar_53 = c(posvar_53,nb_levels[1,i])
+	}
+}
+posvar_53
+
+base_a1 = base_a[,-(posvar_53+2)]
+rf3 = rfImpute(x = base_a1[,-c(1,2)], y = as.factor(base_a1$target), ntree = 10)
+
+memory.size()
+memory.limit(size = 98000)
+
+listindiv = sample(dim(base_a)[1], 100, T)
+rf4 = rfImpute(x = base_a1[listindiv,-c(1,2)], y = as.factor(base_a1$target)[listindiv], ntree = 10)
+
+varcible = as.factor(base_a1$target)[listindiv]
+randomforest1 = randomForest(varcible ~base_a1[listindiv,-c(1,2)],  rf4)
+importance(randomForest1)
+
 
 library(parallel)
 library(foreach)
-install.package('doParallel')
 library(doParallel)
 
 # Calculate the number of cores
