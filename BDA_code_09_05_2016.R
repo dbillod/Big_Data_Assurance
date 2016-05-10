@@ -1,13 +1,17 @@
 rm(list = ls())
-#setwd("C:/BDA")
-setwd("C:/Users/David/Documents/ENSAE/3A/Big Data et assurance/BNP Claims Management")
+setwd("E:/claire/bureau/Big Data/base")
+
+install.packages("ggplot2")
+install.packages("readr")
+install.packages("xgboost")
+install.packages("caret")
+install.packages("e1071")
 
 library(ggplot2)
 library(readr)
 library(xgboost)
 library(caret)
 library(e1071)
-library(plyr)
 
 #On lit les bases de train et de test
 train_raw = read_csv("train.csv")
@@ -69,13 +73,15 @@ LogLoss = function(actual, predicted, eps=0.00001){
   -1/length(actual)*(sum(actual*log(predicted)+(1-actual)*log(1-predicted)))
 }
 
+predictedi1 = pmin(pmax(
+
 #On va créer une matrice dont la première ligne va être le numéro de la vavriable testée,
 #et la seconde ligne le score associée
 ess1var = matrix(-1, ncol = ncol(data), nrow = 2)
 ess1var[1,] = names(data)
-for ( i in 1:(ncol(data))){ # Cela va aussi prendre comme variable explicative la  variable count_na 
-  train_ess1var = train[,i]
-  test_ess1var = test[,i]
+for ( i in 38:(ncol(data))){ # Cela va aussi prendre comme variable explicative la  variable count_na 
+  train_ess1var = as.numeric(train[,i])
+  test_ess1var = as.numeric(test[,i])
   
   #On crée un objet recapitulant les paramètres de la cross validation que nous allons faire
   CV_control_ess1var = trainControl(method = "cv",
@@ -91,11 +97,11 @@ for ( i in 1:(ncol(data))){ # Cela va aussi prendre comme variable explicative l
                         eta = c(0.05),
                         max_depth = c(8),
                         min_child_weight = c(4),
-                        colsample_bytree =0.8,
+                        colsample_bytree =1,
                         gamma = 1)
   
   
-  xgbTree_ess1var = train(x = train_ess1var,
+  xgbTree_ess1var = train(x = as.data.frame(train_ess1var),
                   y = y_train,
                   method = "xgbTree",
                   tuneGrid = CV_grid_ess1var,                            
@@ -110,8 +116,14 @@ for ( i in 1:(ncol(data))){ # Cela va aussi prendre comme variable explicative l
   pred_ess1var = predict(xgbTree_ess1var,test_ess1var,type = "prob")
   
   
-  ess1var[2,i] = LogLoss(as.numeric(y_val)-1,as.numeric(pred_ess1var[,2])-1)
+  ess1var[2,i] = LogLoss(as.numeric(y_val)-1,as.numeric(pred_ess1var[,2]))
 }
+
+data$v38 = as.numeric(data$v38)
+
+LogLoss(as.numeric(y_val)-1,as.numeric(essi1[,2]))
+LogLoss(as.numeric(y_val)-1,as.numeric(essi2[,2]))
+
 
 length(unique(ess1var[2,])) == length(ess1var[2,])
 
@@ -127,6 +139,9 @@ for (k in 1:ncol(ess1var)){
 
 ess1var_tri
 
+class_1var = rbind(ess1var,ess1var_tri)
+
+write.csv2(class_1var, "essai.csv")
 
 #On crée un objet recapitulant les paramètres de la cross validation que nous allons faire
 CV_control = trainControl(method = "cv",
@@ -160,29 +175,17 @@ xgbTree = train(x = train,
 
 plot(xgbTree)
 
+imp_gboost = varImp(xgbTree)
+
+write.csv2(imp_gboost, "imp_gboost.csv")
+
 pred = predict(xgbTree,test,type = "prob")
 
-
-
-LogLoss(as.numeric(y_val)-1,as.numeric(pred[,2])-1)
+library(hmeasure)
+HMeasure(as.numeric(y_val)-1, as.numeric(pred[,2]))[1]
+LogLoss(as.numeric(y_val)-1,as.numeric(pred[,2]))
 
 submission = read_csv("sample_submission.csv")
 submission$PredictedProb = pred[,2]
 
 write.csv(submission, "submission.csv", row.names=F, quote=F)
-
-c<-cor(train_final)
-
-install.packages("xlsx")
-library(xlsx)
-write.xlsx(c,"C:/Users/David/Documents/ENSAE/3A/Big Data et assurance/BNP Claims Management/corra.xlsx")
-
-install.packages("corrplot")
-library(corrplot)
-corrplot(c, type="upper", order="hclust", tl.col="black", tl.srt=45)
-
-col<- colorRampPalette(c("blue", "white", "red"))(20)
-cormat<-rquery.cormat(c, type="full", col=col)
-
-
-
